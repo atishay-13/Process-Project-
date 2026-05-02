@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  name          String
+  email         String          @unique
+  password_hash String
+  created_at    DateTime        @default(now())
+  
+  // Relations
+  created_projects Project[]      @relation("ProjectCreator")
+  project_members  ProjectMember[]
+  assigned_tasks   Task[]         @relation("TaskAssignee")
+  
+  @@map("users")
+}
+
+model Project {
+  id         Int      @id @default(autoincrement())
+  name       String
+  created_by Int
+  created_at DateTime @default(now())
+  
+  // Relations
+  creator User            @relation("ProjectCreator", fields: [created_by], references: [id])
+  members ProjectMember[]
+  tasks   Task[]
+  
+  @@map("projects")
+}
+
+model ProjectMember {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  project_id Int
+  role       Role
+  joined_at  DateTime @default(now())
+  
+  // Relations
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  @@unique([user_id, project_id])
+  @@index([user_id, project_id])
+  @@map("project_members")
+}
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  due_date    DateTime
+  assigned_to Int?
+  project_id  Int
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  
+  // Relations
+  assignee User?   @relation("TaskAssignee", fields: [assigned_to], references: [id], onDelete: SetNull)
+  project  Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  @@index([project_id])
+  @@index([assigned_to])
+  @@map("tasks")
+}
+
+enum Role {
+  Admin
+  Member
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
